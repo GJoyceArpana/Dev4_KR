@@ -1,4 +1,4 @@
-import React, { useState, useContext } from 'react';
+import React, { useState, useContext, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { LanguageContext } from '../App';
 import LanguageToggle from '../components/LanguageToggle';
@@ -8,9 +8,9 @@ import DetailModal from '../components/DetailModal';
 import { ArrowLeft, Map, List } from 'lucide-react';
 import { CalculationResult, Market } from '../types/api';
 
-interface ResultsPageProps {
-  results: CalculationResult | null;
-}
+// 🔗 NEW imports
+import { MARKETS_MOCK, CROPS_MOCK } from '../mock/mandiData';
+import { getMandis } from '../services/mandiApi';
 
 const translations = {
   hi: {
@@ -31,7 +31,7 @@ const translations = {
   },
 };
 
-const ResultsPage: React.FC<ResultsPageProps> = ({ results }) => {
+const ResultsPage: React.FC = () => {
   const { language } = useContext(LanguageContext);
   const t = translations[language];
   const navigate = useNavigate();
@@ -39,24 +39,37 @@ const ResultsPage: React.FC<ResultsPageProps> = ({ results }) => {
   const [viewMode, setViewMode] = useState<'list' | 'map'>('list');
   const [selectedMarket, setSelectedMarket] = useState<Market | null>(null);
 
-  if (!results) {
+  // 🔥 Backend → Frontend bridge state
+  const [markets, setMarkets] = useState<Market[]>(MARKETS_MOCK);
+  const [loading, setLoading] = useState(true);
+
+  // Static crop + quantity for MVP demo
+  const crop = CROPS_MOCK[0];
+  const quantity = 25;
+
+  // 🔗 Fetch backend data
+  useEffect(() => {
+    getMandis()
+      .then((data) => {
+        if (data?.markets?.length) {
+          setMarkets(data.markets);
+        }
+      })
+      .catch((err) => {
+        console.warn('Backend not available, using mock data', err);
+      })
+      .finally(() => {
+        setLoading(false);
+      });
+  }, []);
+
+  if (loading) {
     return (
-      <div className="min-h-screen bg-gray-100 flex items-center justify-center px-4">
-        <div className="text-center" data-testid="no-results">
-          <p className="text-xl text-gray-700 mb-4">{t.noResults}</p>
-          <button
-            data-testid="go-back-button"
-            onClick={() => navigate('/')}
-            className="bg-orange-500 hover:bg-orange-600 text-white font-bold py-3 px-6 rounded-xl"
-          >
-            {t.goBack}
-          </button>
-        </div>
+      <div className="min-h-screen bg-gray-100 flex items-center justify-center">
+        <p className="text-lg text-gray-700">Loading market data…</p>
       </div>
     );
   }
-
-  const { crop, quantity, markets } = results;
 
   return (
     <div className="min-h-screen bg-gray-100 pb-6">
@@ -65,7 +78,6 @@ const ResultsPage: React.FC<ResultsPageProps> = ({ results }) => {
       <div className="bg-white shadow-sm border-b border-gray-200 sticky top-0 z-10">
         <div className="max-w-md mx-auto px-6 py-4">
           <button
-            data-testid="back-button"
             onClick={() => navigate('/')}
             className="flex items-center gap-2 text-green-700 font-semibold mb-3 hover:text-green-800 transition-colors"
           >
@@ -73,7 +85,7 @@ const ResultsPage: React.FC<ResultsPageProps> = ({ results }) => {
             {t.back}
           </button>
 
-          <div className="flex items-center justify-between" data-testid="results-header">
+          <div className="flex items-center justify-between">
             <div>
               <h2 className="text-2xl font-bold text-gray-800">
                 {language === 'hi' ? crop.name_hi : crop.name_en}
@@ -83,25 +95,23 @@ const ResultsPage: React.FC<ResultsPageProps> = ({ results }) => {
               </p>
             </div>
 
-            <div className="flex gap-2" data-testid="view-toggle">
+            <div className="flex gap-2">
               <button
-                data-testid="list-view-button"
                 onClick={() => setViewMode('list')}
-                className={`p-2 rounded-lg transition-colors ${
+                className={`p-2 rounded-lg ${
                   viewMode === 'list'
                     ? 'bg-green-700 text-white'
-                    : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
+                    : 'bg-gray-200 text-gray-700'
                 }`}
               >
                 <List className="w-5 h-5" />
               </button>
               <button
-                data-testid="map-view-button"
                 onClick={() => setViewMode('map')}
-                className={`p-2 rounded-lg transition-colors ${
+                className={`p-2 rounded-lg ${
                   viewMode === 'map'
                     ? 'bg-green-700 text-white'
-                    : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
+                    : 'bg-gray-200 text-gray-700'
                 }`}
               >
                 <Map className="w-5 h-5" />
@@ -113,7 +123,7 @@ const ResultsPage: React.FC<ResultsPageProps> = ({ results }) => {
 
       <div className="max-w-md mx-auto px-6 py-6">
         {viewMode === 'list' ? (
-          <div className="space-y-4" data-testid="market-list">
+          <div className="space-y-4">
             {markets.map((market, index) => (
               <MarketCard
                 key={market.id}
@@ -124,8 +134,11 @@ const ResultsPage: React.FC<ResultsPageProps> = ({ results }) => {
             ))}
           </div>
         ) : (
-          <div className="h-[70vh] rounded-xl overflow-hidden shadow-lg" data-testid="market-map">
-            <MarketMap markets={markets} onMarkerClick={(market) => setSelectedMarket(market)} />
+          <div className="h-[70vh] rounded-xl overflow-hidden shadow-lg">
+            <MarketMap
+              markets={markets}
+              onMarkerClick={(market) => setSelectedMarket(market)}
+            />
           </div>
         )}
       </div>
