@@ -1,12 +1,13 @@
 import React, { useContext } from 'react';
 import { LanguageContext } from '../App';
 import { X, IndianRupee, Truck, Package, TrendingUp } from 'lucide-react';
-import { Market, Crop } from '../types/api';
+import { Market, Crop, Vehicle } from '../types/api';
 
 interface DetailModalProps {
   market: Market;
   crop: Crop;
   quantity: number;
+  vehicle?: Vehicle;
   onClose: () => void;
 }
 
@@ -21,6 +22,7 @@ const translations = {
     netProfit: 'शुद्ध फायदा',
     distance: 'दूरी',
     km: 'किमी',
+    vehicle: 'वाहन',
   },
   en: {
     details: 'Complete Details',
@@ -32,10 +34,11 @@ const translations = {
     netProfit: 'Net Profit',
     distance: 'Distance',
     km: 'km',
+    vehicle: 'Vehicle',
   },
 };
 
-const DetailModal: React.FC<DetailModalProps> = ({ market, crop, quantity, onClose }) => {
+const DetailModal: React.FC<DetailModalProps> = ({ market, crop, quantity, vehicle, onClose }) => {
   const { language } = useContext(LanguageContext);
   const t = translations[language];
 
@@ -71,6 +74,11 @@ const DetailModal: React.FC<DetailModalProps> = ({ market, crop, quantity, onClo
           <p className="text-sm text-gray-600">
             {t.distance}: {market.distance_km} {t.km}
           </p>
+          {vehicle && (
+            <p className="text-sm text-gray-600">
+              {t.vehicle}: {vehicle.icon} {language === 'hi' ? vehicle.name_hi : vehicle.name_en} (₹{vehicle.cost_per_km}/{t.km})
+            </p>
+          )}
         </div>
 
         <div className="space-y-3 mb-6">
