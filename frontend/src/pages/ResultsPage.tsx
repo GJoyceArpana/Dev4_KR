@@ -9,7 +9,7 @@ import { ArrowLeft, Map, List } from 'lucide-react';
 import { CalculationResult, Market } from '../types/api';
 
 // 🔗 NEW imports
-import { MARKETS_MOCK, CROPS_MOCK } from '../mock/mandiData';
+import { MARKETS_MOCK, CROPS_MOCK, VEHICLES_MOCK } from '../mock/mandiData';
 import { getMandis } from '../services/mandiApi';
 
 const translations = {
@@ -31,7 +31,11 @@ const translations = {
   },
 };
 
-const ResultsPage: React.FC = () => {
+interface ResultsPageProps {
+  results: CalculationResult | null;
+}
+
+const ResultsPage: React.FC<ResultsPageProps> = ({ results }) => {
   const { language } = useContext(LanguageContext);
   const t = translations[language];
   const navigate = useNavigate();
@@ -43,25 +47,67 @@ const ResultsPage: React.FC = () => {
   const [markets, setMarkets] = useState<Market[]>(MARKETS_MOCK);
   const [loading, setLoading] = useState(true);
 
-  // Static crop + quantity for MVP demo
-  const crop = CROPS_MOCK[0];
-  const quantity = 25;
+    // Get data from results or use defaults
+  const crop = results?.crop || CROPS_MOCK[0];
+  const quantity = results?.quantity || 25;
+  const vehicle = results?.vehicle || VEHICLES_MOCK[0];
 
-  // 🔗 Fetch backend data
+    // 🔗 Fetch backend data and recalculate with selected vehicle
   useEffect(() => {
     getMandis()
       .then((data) => {
         if (data?.markets?.length) {
-          setMarkets(data.markets);
+          // Recalculate transport costs based on selected vehicle
+          const recalculatedMarkets = data.markets.map((market: Market) => {
+            const newTransportCost = Math.round(market.distance_km * vehicle.cost_per_km);
+            const totalRevenue = market.price_per_quintal * quantity;
+            const newNetProfit = totalRevenue - newTransportCost - market.handling_cost;
+            
+            // Determine profit category
+            let profitCategory: 'high' | 'medium' | 'low' = 'low';
+            if (newNetProfit > 58000) profitCategory = 'high';
+            else if (newNetProfit > 54000) profitCategory = 'medium';
+            
+            return {
+              ...market,
+              transport_cost: newTransportCost,
+              net_profit: newNetProfit,
+              profit_category: profitCategory,
+            };
+          });
+          
+          // Sort by net profit descending
+          recalculatedMarkets.sort((a: Market, b: Market) => b.net_profit - a.net_profit);
+          setMarkets(recalculatedMarkets);
         }
       })
       .catch((err) => {
         console.warn('Backend not available, using mock data', err);
+        // Recalculate with mock data
+        const recalculatedMarkets = MARKETS_MOCK.map((market) => {
+          const newTransportCost = Math.round(market.distance_km * vehicle.cost_per_km);
+          const totalRevenue = market.price_per_quintal * quantity;
+          const newNetProfit = totalRevenue - newTransportCost - market.handling_cost;
+          
+          let profitCategory: 'high' | 'medium' | 'low' = 'low';
+          if (newNetProfit > 58000) profitCategory = 'high';
+          else if (newNetProfit > 54000) profitCategory = 'medium';
+          
+          return {
+            ...market,
+            transport_cost: newTransportCost,
+            net_profit: newNetProfit,
+            profit_category: profitCategory,
+          };
+        });
+        
+        recalculatedMarkets.sort((a, b) => b.net_profit - a.net_profit);
+        setMarkets(recalculatedMarkets);
       })
       .finally(() => {
         setLoading(false);
       });
-  }, []);
+  }, [vehicle.cost_per_km, quantity]);
 
   if (loading) {
     return (
@@ -148,6 +194,7 @@ const ResultsPage: React.FC = () => {
           market={selectedMarket}
           crop={crop}
           quantity={quantity}
+          vehicle={vehicle}
           onClose={() => setSelectedMarket(null)}
         />
       )}
