@@ -6,11 +6,26 @@
 function calculateBestMandi(input, mandis) {
 
   const results = mandis.map(mandi => {
-    const revenue = mandi.price * input.quantity;
-    const transportCost = mandi.distance * input.vehicleRate;
-    const otherCost = input.handlingCost || 0;
 
-    // Ride share optimization
+    // ✅ Correct field names from mandiData
+    const price = mandi.price_per_quintal;
+    const distance = mandi.distance_km;
+
+    const quantity = Number(input.quantity) || 0;
+    const vehicleRate = Number(input.vehicleRate) || 25; // default ₹25/km
+    const fuelPrice = Number(input.fuelPrice) || 95;
+
+    // Optional fuel-based dynamic rate adjustment
+    const adjustedVehicleRate = vehicleRate + (fuelPrice * 0.05);
+
+    const revenue = price * quantity;
+    const transportCost = distance * adjustedVehicleRate;
+
+    const otherCost = mandi.handling_cost
+      ? mandi.handling_cost
+      : 0;
+
+    // 🚗 Ride Share
     let rideShareSavings = 0;
     let finalTransportCost = transportCost;
 
@@ -19,16 +34,16 @@ function calculateBestMandi(input, mandis) {
       finalTransportCost = transportCost - rideShareSavings;
     }
 
-    // Perishability logic
+    // 🥬 Perishability
     let spoilageLoss = 0;
     let perishabilityRisk = "LOW";
     const perishableCrops = ["tomato", "onion"];
 
-  if (input.crop && perishableCrops.includes(input.crop.toLowerCase())) {
-      if (mandi.distance > 200) {
+    if (input.crop && perishableCrops.includes(input.crop.toLowerCase())) {
+      if (distance > 200) {
         perishabilityRisk = "HIGH";
         spoilageLoss = revenue * 0.12;
-      } else if (mandi.distance > 120) {
+      } else if (distance > 120) {
         perishabilityRisk = "MEDIUM";
         spoilageLoss = revenue * 0.05;
       }
@@ -38,12 +53,14 @@ function calculateBestMandi(input, mandis) {
       revenue - finalTransportCost - otherCost - spoilageLoss;
 
     return {
-      mandi: mandi.name,
-      price: mandi.price,
-      distance: mandi.distance,
+      id: mandi.id,
+      name: mandi.name,
+      price,
+      distance,
       revenue,
       transportCost: finalTransportCost,
       otherCost,
+      fuelPrice,
       netProfit,
       perishability: {
         riskLevel: perishabilityRisk,
@@ -56,10 +73,9 @@ function calculateBestMandi(input, mandis) {
     };
   });
 
-  // ✅ Sort AFTER map finishes
+  // Sort by best profit
   results.sort((a, b) => b.netProfit - a.netProfit);
 
-  // ✅ Rank assignment
   results.forEach((item, index) => {
     item.rank = index + 1;
     item.isBest = index === 0;

@@ -1,118 +1,79 @@
-import React, { useState, useContext, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
-import { LanguageContext } from '../App';
-import LanguageToggle from '../components/LanguageToggle';
-import MarketCard from '../components/MarketCard';
-import MarketMap from '../components/MarketMap';
-import DetailModal from '../components/DetailModal';
-import { ArrowLeft, Map, List } from 'lucide-react';
-import { CalculationResult, Market } from '../types/api';
+import React, { useState, useContext, useEffect } from "react";
+import { useNavigate } from "react-router-dom";
+import axios from "axios";
+import { ArrowLeft, Map, List } from "lucide-react";
 
-// 🔗 NEW imports
-import { MARKETS_MOCK, CROPS_MOCK, VEHICLES_MOCK } from '../mock/mandiData';
-import { getMandis } from '../services/mandiApi';
+import { LanguageContext } from "../App";
+import LanguageToggle from "../components/LanguageToggle";
+import MarketCard from "../components/MarketCard";
+import MarketMap from "../components/MarketMap";
+import DetailModal from "../components/DetailModal";
 
-const translations = {
-  hi: {
-    back: 'वापस जाएं',
-    bestOption: 'सबसे ज्यादा फायदा',
-    showMap: 'नक्शा देखें',
-    showList: 'सूची देखें',
-    noResults: 'कोई परिणाम नहीं मिला',
-    goBack: 'वापस जाएं',
-  },
-  en: {
-    back: 'Go Back',
-    bestOption: 'Maximum Profit',
-    showMap: 'Show Map',
-    showList: 'Show List',
-    noResults: 'No results found',
-    goBack: 'Go Back',
-  },
-};
+import { CROPS_MOCK, VEHICLES_MOCK } from "../mock/mandiData";
+import { CalculationResult, Market } from "../types/api";
 
 interface ResultsPageProps {
   results: CalculationResult | null;
 }
 
+const translations = {
+  hi: {
+    back: "वापस जाएं",
+  },
+  en: {
+    back: "Go Back",
+  },
+};
+
 const ResultsPage: React.FC<ResultsPageProps> = ({ results }) => {
   const { language } = useContext(LanguageContext);
-  const t = translations[language];
   const navigate = useNavigate();
+  const t = translations[language];
 
-  const [viewMode, setViewMode] = useState<'list' | 'map'>('list');
-  const [selectedMarket, setSelectedMarket] = useState<Market | null>(null);
-
-  // 🔥 Backend → Frontend bridge state
-  const [markets, setMarkets] = useState<Market[]>(MARKETS_MOCK);
+  const [viewMode, setViewMode] = useState<"list" | "map">("list");
+  const [selectedMarket, setSelectedMarket] = useState<any>(null);
+  const [markets, setMarkets] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
 
-    // Get data from results or use defaults
   const crop = results?.crop || CROPS_MOCK[0];
   const quantity = results?.quantity || 25;
   const vehicle = results?.vehicle || VEHICLES_MOCK[0];
 
-    // 🔗 Fetch backend data and recalculate with selected vehicle
+  // 🚀 Fetch calculation from backend
   useEffect(() => {
-    getMandis()
-      .then((data) => {
-        if (data?.markets?.length) {
-          // Recalculate transport costs based on selected vehicle
-          const recalculatedMarkets = data.markets.map((market: Market) => {
-            const newTransportCost = Math.round(market.distance_km * vehicle.cost_per_km);
-            const totalRevenue = market.price_per_quintal * quantity;
-            const newNetProfit = totalRevenue - newTransportCost - market.handling_cost;
-            
-            // Determine profit category
-            let profitCategory: 'high' | 'medium' | 'low' = 'low';
-            if (newNetProfit > 58000) profitCategory = 'high';
-            else if (newNetProfit > 54000) profitCategory = 'medium';
-            
-            return {
-              ...market,
-              transport_cost: newTransportCost,
-              net_profit: newNetProfit,
-              profit_category: profitCategory,
-            };
-          });
-          
-          // Sort by net profit descending
-          recalculatedMarkets.sort((a: Market, b: Market) => b.net_profit - a.net_profit);
-          setMarkets(recalculatedMarkets);
+    const fetchProfit = async () => {
+      try {
+        const response = await axios.post(
+          "http://localhost:5000/api/calculate",
+          {
+            quantity,
+            vehicleRate: vehicle.cost_per_km,
+            crop: crop.id,
+            rideShare: false
+          }
+        );
+
+        console.log("🔥 Backend Response:", response.data);
+
+        if (response.data?.results) {
+          setMarkets(response.data.results);
         }
-      })
-      .catch((err) => {
-        console.warn('Backend not available, using mock data', err);
-        // Recalculate with mock data
-        const recalculatedMarkets = MARKETS_MOCK.map((market) => {
-          const newTransportCost = Math.round(market.distance_km * vehicle.cost_per_km);
-          const totalRevenue = market.price_per_quintal * quantity;
-          const newNetProfit = totalRevenue - newTransportCost - market.handling_cost;
-          
-          let profitCategory: 'high' | 'medium' | 'low' = 'low';
-          if (newNetProfit > 58000) profitCategory = 'high';
-          else if (newNetProfit > 54000) profitCategory = 'medium';
-          
-          return {
-            ...market,
-            transport_cost: newTransportCost,
-            net_profit: newNetProfit,
-            profit_category: profitCategory,
-          };
-        });
-        
-        recalculatedMarkets.sort((a, b) => b.net_profit - a.net_profit);
-        setMarkets(recalculatedMarkets);
-      })
-      .finally(() => {
+      } catch (error) {
+        console.error("Backend error:", error);
+      } finally {
         setLoading(false);
-      });
-  }, [vehicle.cost_per_km, quantity]);
+      }
+    };
+
+    fetchProfit();
+  }, [quantity, vehicle.cost_per_km, crop.id]);
 
   if (loading) {
     return (
       <div className="min-h-screen bg-gray-100 flex items-center justify-center">
-        <p className="text-lg text-gray-700">Loading market data…</p>
+        <p className="text-lg text-gray-700">
+          Calculating best mandi…
+        </p>
       </div>
     );
   }
@@ -121,11 +82,12 @@ const ResultsPage: React.FC<ResultsPageProps> = ({ results }) => {
     <div className="min-h-screen bg-gray-100 pb-6">
       <LanguageToggle />
 
+      {/* Header */}
       <div className="bg-white shadow-sm border-b border-gray-200 sticky top-0 z-10">
         <div className="max-w-md mx-auto px-6 py-4">
           <button
-            onClick={() => navigate('/')}
-            className="flex items-center gap-2 text-green-700 font-semibold mb-3 hover:text-green-800 transition-colors"
+            onClick={() => navigate("/")}
+            className="flex items-center gap-2 text-green-700 font-semibold mb-3"
           >
             <ArrowLeft className="w-5 h-5" />
             {t.back}
@@ -134,30 +96,31 @@ const ResultsPage: React.FC<ResultsPageProps> = ({ results }) => {
           <div className="flex items-center justify-between">
             <div>
               <h2 className="text-2xl font-bold text-gray-800">
-                {language === 'hi' ? crop.name_hi : crop.name_en}
+                {language === "hi" ? crop.name_hi : crop.name_en}
               </h2>
               <p className="text-base text-gray-600">
-                {quantity} {language === 'hi' ? 'क्विंटल' : 'quintal'}
+                {quantity} quintal
               </p>
             </div>
 
             <div className="flex gap-2">
               <button
-                onClick={() => setViewMode('list')}
+                onClick={() => setViewMode("list")}
                 className={`p-2 rounded-lg ${
-                  viewMode === 'list'
-                    ? 'bg-green-700 text-white'
-                    : 'bg-gray-200 text-gray-700'
+                  viewMode === "list"
+                    ? "bg-green-700 text-white"
+                    : "bg-gray-200"
                 }`}
               >
                 <List className="w-5 h-5" />
               </button>
+
               <button
-                onClick={() => setViewMode('map')}
+                onClick={() => setViewMode("map")}
                 className={`p-2 rounded-lg ${
-                  viewMode === 'map'
-                    ? 'bg-green-700 text-white'
-                    : 'bg-gray-200 text-gray-700'
+                  viewMode === "map"
+                    ? "bg-green-700 text-white"
+                    : "bg-gray-200"
                 }`}
               >
                 <Map className="w-5 h-5" />
@@ -167,13 +130,28 @@ const ResultsPage: React.FC<ResultsPageProps> = ({ results }) => {
         </div>
       </div>
 
+      {/* Body */}
       <div className="max-w-md mx-auto px-6 py-6">
-        {viewMode === 'list' ? (
+        {viewMode === "list" ? (
           <div className="space-y-4">
             {markets.map((market, index) => (
               <MarketCard
                 key={market.id}
-                market={market}
+                market={{
+                  id: market.id,
+                  name: market.name,
+                  distance_km: market.distance,
+                  price_per_quintal: market.price,
+                  transport_cost: market.transportCost,
+                  handling_cost: market.otherCost,
+                  net_profit: market.netProfit,
+                  profit_category:
+                    market.rank === 1
+                      ? "high"
+                      : market.rank === 2
+                      ? "medium"
+                      : "low"
+                }}
                 index={index}
                 onClick={() => setSelectedMarket(market)}
               />
@@ -183,12 +161,15 @@ const ResultsPage: React.FC<ResultsPageProps> = ({ results }) => {
           <div className="h-[70vh] rounded-xl overflow-hidden shadow-lg">
             <MarketMap
               markets={markets}
-              onMarkerClick={(market) => setSelectedMarket(market)}
+              onMarkerClick={(market) =>
+                setSelectedMarket(market)
+              }
             />
           </div>
         )}
       </div>
 
+      {/* Modal */}
       {selectedMarket && (
         <DetailModal
           market={selectedMarket}
