@@ -1,4 +1,4 @@
-import { useEffect } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import L from 'leaflet';
 import { Market } from '../types/api';
 
@@ -7,77 +7,115 @@ interface MarketMapProps {
   onMarkerClick: (market: Market) => void;
 }
 
+const bestMandiIcon = new L.Icon({
+  iconUrl: 'https://cdn-icons-png.flaticon.com/512/190/190411.png',
+  iconSize: [40, 40],
+  iconAnchor: [20, 40],
+});
+
+const normalIcon = new L.Icon({
+  iconUrl: 'https://cdn-icons-png.flaticon.com/512/684/684908.png',
+  iconSize: [25, 25],
+  iconAnchor: [12, 25],
+});
+
 const MarketMap: React.FC<MarketMapProps> = ({ markets, onMarkerClick }) => {
+  const mapRef = useRef<L.Map | null>(null);
+  const routeLayerRef = useRef<L.LayerGroup | null>(null);
+
+  const [farmerLocation, setFarmerLocation] = useState({
+    lat: 28.6139,
+    lng: 77.2090,
+  });
+
+  // Create map only once
   useEffect(() => {
-    // Farmer location (MVP – Delhi)
-    const farmerLat = 28.6139;
-    const farmerLng = 77.2090;
+    const map = L.map('market-map').setView(
+      [farmerLocation.lat, farmerLocation.lng],
+      6
+    );
 
-    // Initialize map
-    const map = L.map('market-map').setView([farmerLat, farmerLng], 6);
+    mapRef.current = map;
 
-    // Base tiles
     L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
       attribution: '© OpenStreetMap contributors',
     }).addTo(map);
 
-    // Farmer marker
-    L.marker([farmerLat, farmerLng])
-      .addTo(map)
-      .bindPopup('Farmer Location');
+    routeLayerRef.current = L.layerGroup().addTo(map);
 
-    // Market markers + routes
-    markets.forEach(async (market) => {
-      if (!market.lat || !market.lng) return;
-
-      const marker = L.marker([market.lat, market.lng])
-        .addTo(map)
-        .bindPopup(`<b>${market.name}</b><br/>Loading route...`)
-        .on('click', () => onMarkerClick(market));
-
-      try {
-        const url = `https://router.project-osrm.org/route/v1/driving/${farmerLng},${farmerLat};${market.lng},${market.lat}?overview=full&geometries=geojson`;
-        const res = await fetch(url);
-        const data = await res.json();
-
-        const route = data.routes[0];
-        const distanceKm = (route.distance / 1000).toFixed(1);
-
-        // Update popup
-        marker.setPopupContent(
-          `<b>${market.name}</b><br/>Distance: ${distanceKm} km`
-        );
-
-        // Draw route polyline
-        const routeCoords = route.geometry.coordinates.map(
-          ([lng, lat]: number[]) => [lat, lng]
-        );
-
-        const polyline = L.polyline(routeCoords, {
-          color: 'green',
-          weight: 4,
-          opacity: 0.7,
-        }).addTo(map);
-
-        // Zoom to route
-        map.fitBounds(polyline.getBounds());
-      } catch (error) {
-        console.error('OSRM error:', error);
-        marker.setPopupContent(
-          `<b>${market.name}</b><br/>Route unavailable`
-        );
-      }
+    // Click map to change farmer location
+    map.on('click', (e: any) => {
+      const { lat, lng } = e.latlng;
+      setFarmerLocation({ lat, lng });
     });
 
     return () => {
       map.remove();
     };
-  }, [markets, onMarkerClick]);
+  }, []);
+
+  // Update routes when farmer location changes
+  useEffect(() => {
+    const map = mapRef.current;
+    const routeLayer = routeLayerRef.current;
+
+    if (!map || !routeLayer) return;
+
+    routeLayer.clearLayers();
+
+    // Farmer marker
+    L.marker([farmerLocation.lat, farmerLocation.lng])
+      .addTo(routeLayer)
+      .bindPopup('Farmer Location');
+
+    const bestMarket = markets.find(
+      (m) => m.profit_category === 'high'
+    );
+
+    markets.forEach(async (market) => {
+      const markerIcon =
+        market.profit_category === 'high' ? bestMandiIcon : normalIcon;
+
+      const marker = L.marker([market.lat, market.lng], {
+        icon: markerIcon,
+      })
+        .addTo(routeLayer)
+        .bindPopup(market.name)
+        .on('click', () => onMarkerClick(market));
+
+      try {
+        const url = `https://router.project-osrm.org/route/v1/driving/${farmerLocation.lng},${farmerLocation.lat};${market.lng},${market.lat}?overview=full&geometries=geojson`;
+
+        const res = await fetch(url);
+        const data = await res.json();
+
+        const route = data.routes[0];
+
+        const routeCoords = route.geometry.coordinates.map(
+          ([lng, lat]: number[]) => [lat, lng]
+        );
+
+        const isBest = bestMarket?.id === market.id;
+
+        L.polyline(routeCoords, {
+          color: isBest ? '#FFD700' : 'green',
+          weight: isBest ? 6 : 4,
+        }).addTo(routeLayer);
+
+      } catch (err) {
+        console.error('Routing error', err);
+      }
+    });
+
+  }, [farmerLocation, markets, onMarkerClick]);
 
   return (
     <div
       id="market-map"
-      style={{ height: '100%', width: '100%' }}
+      style={{
+        height: '100%',
+        width: '100%',
+      }}
     />
   );
 };

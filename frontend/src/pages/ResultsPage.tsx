@@ -5,10 +5,10 @@ import LanguageToggle from '../components/LanguageToggle';
 import MarketCard from '../components/MarketCard';
 import MarketMap from '../components/MarketMap';
 import DetailModal from '../components/DetailModal';
-import { ArrowLeft, Map, List } from 'lucide-react';
-import { CalculationResult, Market } from '../types/api';
+import { ArrowLeft } from 'lucide-react';
+import { Market } from '../types/api';
 
-// 🔗 NEW imports
+// 🔗 imports
 import { MARKETS_MOCK, CROPS_MOCK } from '../mock/mandiData';
 import { getMandis } from '../services/mandiApi';
 
@@ -16,18 +16,10 @@ const translations = {
   hi: {
     back: 'वापस जाएं',
     bestOption: 'सबसे ज्यादा फायदा',
-    showMap: 'नक्शा देखें',
-    showList: 'सूची देखें',
-    noResults: 'कोई परिणाम नहीं मिला',
-    goBack: 'वापस जाएं',
   },
   en: {
     back: 'Go Back',
     bestOption: 'Maximum Profit',
-    showMap: 'Show Map',
-    showList: 'Show List',
-    noResults: 'No results found',
-    goBack: 'Go Back',
   },
 };
 
@@ -36,18 +28,15 @@ const ResultsPage: React.FC = () => {
   const t = translations[language];
   const navigate = useNavigate();
 
-  const [viewMode, setViewMode] = useState<'list' | 'map'>('list');
   const [selectedMarket, setSelectedMarket] = useState<Market | null>(null);
 
-  // 🔥 Backend → Frontend bridge state
   const [markets, setMarkets] = useState<Market[]>(MARKETS_MOCK);
   const [loading, setLoading] = useState(true);
 
-  // Static crop + quantity for MVP demo
   const crop = CROPS_MOCK[0];
   const quantity = 25;
 
-  // 🔗 Fetch backend data
+  // Fetch backend markets
   useEffect(() => {
     getMandis()
       .then((data) => {
@@ -63,6 +52,11 @@ const ResultsPage: React.FC = () => {
       });
   }, []);
 
+  // Find best mandi
+  const bestMarket = markets.find(
+    (m) => m.profit_category === 'high'
+  );
+
   if (loading) {
     return (
       <div className="min-h-screen bg-gray-100 flex items-center justify-center">
@@ -73,10 +67,13 @@ const ResultsPage: React.FC = () => {
 
   return (
     <div className="min-h-screen bg-gray-100 pb-6">
+
       <LanguageToggle />
 
+      {/* HEADER */}
       <div className="bg-white shadow-sm border-b border-gray-200 sticky top-0 z-10">
-        <div className="max-w-md mx-auto px-6 py-4">
+        <div className="max-w-6xl mx-auto px-6 py-4">
+
           <button
             onClick={() => navigate('/')}
             className="flex items-center gap-2 text-green-700 font-semibold mb-3 hover:text-green-800 transition-colors"
@@ -95,54 +92,49 @@ const ResultsPage: React.FC = () => {
               </p>
             </div>
 
-            <div className="flex gap-2">
-              <button
-                onClick={() => setViewMode('list')}
-                className={`p-2 rounded-lg ${
-                  viewMode === 'list'
-                    ? 'bg-green-700 text-white'
-                    : 'bg-gray-200 text-gray-700'
-                }`}
-              >
-                <List className="w-5 h-5" />
-              </button>
-              <button
-                onClick={() => setViewMode('map')}
-                className={`p-2 rounded-lg ${
-                  viewMode === 'map'
-                    ? 'bg-green-700 text-white'
-                    : 'bg-gray-200 text-gray-700'
-                }`}
-              >
-                <Map className="w-5 h-5" />
-              </button>
-            </div>
+            {bestMarket && (
+              <div className="bg-green-100 text-green-800 px-4 py-2 rounded-lg font-semibold">
+                ⭐ {t.bestOption}: {bestMarket.name}
+              </div>
+            )}
           </div>
         </div>
       </div>
 
-      <div className="max-w-md mx-auto px-6 py-6">
-        {viewMode === 'list' ? (
-          <div className="space-y-4">
-            {markets.map((market, index) => (
+      {/* MAIN SPLIT LAYOUT */}
+      <div className="max-w-6xl mx-auto px-6 py-6 grid md:grid-cols-2 gap-6">
+
+        {/* MAP SIDE */}
+        <div className="h-[70vh] rounded-xl overflow-hidden shadow-lg">
+          <MarketMap
+            markets={markets}
+            onMarkerClick={(market) => setSelectedMarket(market)}
+          />
+        </div>
+
+        {/* MARKET LIST */}
+        <div className="space-y-4 overflow-y-auto max-h-[70vh] pr-2">
+          {markets.map((market, index) => (
+            <div
+              key={market.id}
+              className={
+                market.profit_category === 'high'
+                  ? 'ring-2 ring-green-500 rounded-xl'
+                  : ''
+              }
+            >
               <MarketCard
-                key={market.id}
                 market={market}
                 index={index}
                 onClick={() => setSelectedMarket(market)}
               />
-            ))}
-          </div>
-        ) : (
-          <div className="h-[70vh] rounded-xl overflow-hidden shadow-lg">
-            <MarketMap
-              markets={markets}
-              onMarkerClick={(market) => setSelectedMarket(market)}
-            />
-          </div>
-        )}
+            </div>
+          ))}
+        </div>
+
       </div>
 
+      {/* MODAL */}
       {selectedMarket && (
         <DetailModal
           market={selectedMarket}
@@ -151,6 +143,7 @@ const ResultsPage: React.FC = () => {
           onClose={() => setSelectedMarket(null)}
         />
       )}
+
     </div>
   );
 };
