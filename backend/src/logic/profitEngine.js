@@ -3,6 +3,11 @@
  -> Calculates net profit for each mandi and recommends the best one
 */
 
+const {
+  calculatePriceProjection,
+  evaluateDistanceRisk
+} = require('./marketInsights');
+
 function calculateBestMandi(input, mandis) {
 
   const results = mandis.map(mandi => {
@@ -21,7 +26,7 @@ function calculateBestMandi(input, mandis) {
     const revenue = price * quantity;
     const transportCost = distance * adjustedVehicleRate;
 
-    const otherCost = mandi.handling_cost
+    const handlingCost = mandi.handling_cost
       ? mandi.handling_cost
       : 0;
 
@@ -50,7 +55,14 @@ function calculateBestMandi(input, mandis) {
     }
 
     const netProfit =
-      revenue - finalTransportCost - otherCost - spoilageLoss;
+      revenue - finalTransportCost - handlingCost - spoilageLoss;
+
+    const {
+      projectedPrice3Day,
+      projectedPrice5Day
+    } = calculatePriceProjection(price, input.crop);
+
+    const risk = evaluateDistanceRisk(distance);
 
     return {
       id: mandi.id,
@@ -59,9 +71,13 @@ function calculateBestMandi(input, mandis) {
       distance,
       revenue,
       transportCost: finalTransportCost,
-      otherCost,
+      handlingCost,
+      otherCost: handlingCost,
       fuelPrice,
       netProfit,
+      projectedPrice3Day,
+      projectedPrice5Day,
+      risk,
       perishability: {
         riskLevel: perishabilityRisk,
         spoilageLoss

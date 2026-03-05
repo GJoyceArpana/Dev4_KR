@@ -23,6 +23,11 @@ const translations = {
     distance: 'दूरी',
     km: 'किमी',
     vehicle: 'वाहन',
+    crop: 'फसल',
+    priceForecast: '📈 मूल्य पूर्वानुमान',
+    projection3Day: '3-दिन प्रोजेक्शन',
+    projection5Day: '5-दिन प्रोजेक्शन',
+    transportRisk: '⚠️ परिवहन जोखिम',
   },
   en: {
     details: 'Complete Details',
@@ -35,6 +40,11 @@ const translations = {
     distance: 'Distance',
     km: 'km',
     vehicle: 'Vehicle',
+    crop: 'Crop',
+    priceForecast: '📈 Price Forecast',
+    projection3Day: '3-Day Projection',
+    projection5Day: '5-Day Projection',
+    transportRisk: '⚠️ Transport Risk',
   },
 };
 
@@ -44,6 +54,16 @@ const DetailModal: React.FC<DetailModalProps> = ({ market, crop, quantity, vehic
 
   const totalMarketValue = market.price_per_quintal * quantity;
   const totalCost = market.transport_cost + market.handling_cost;
+  const projected3Day = market.projectedPrice3Day ?? market.price_per_quintal;
+  const projected5Day = market.projectedPrice5Day ?? market.price_per_quintal;
+  const riskLevel = market.risk?.level ?? 'LOW';
+  const riskMessage = market.risk?.message ?? 'Low spoilage risk due to shorter transport';
+
+  const getRiskBadgeClass = () => {
+    if (riskLevel === 'HIGH') return 'bg-red-100 text-red-700';
+    if (riskLevel === 'MEDIUM') return 'bg-orange-100 text-orange-700';
+    return 'bg-green-100 text-green-700';
+  };
 
   return (
     <div
@@ -71,6 +91,9 @@ const DetailModal: React.FC<DetailModalProps> = ({ market, crop, quantity, vehic
 
         <div className="bg-green-50 border-2 border-green-200 rounded-lg p-4 mb-4" data-testid="market-info">
           <h3 className="text-xl font-bold text-gray-800">{market.name}</h3>
+          <p className="text-sm text-gray-600">
+            {t.crop}: {language === 'hi' ? crop.name_hi : crop.name_en}
+          </p>
           <p className="text-sm text-gray-600">
             {t.distance}: {market.distance_km} {t.km}
           </p>
@@ -133,6 +156,26 @@ const DetailModal: React.FC<DetailModalProps> = ({ market, crop, quantity, vehic
             <IndianRupee className="w-8 h-8" strokeWidth={3} />
             <span className="text-4xl font-bold">{Math.round(market.net_profit).toLocaleString('en-IN')}</span>
           </div>
+        </div>
+
+        <div className="bg-blue-50 border-2 border-blue-200 rounded-xl p-4 mt-4" data-testid="price-forecast">
+          <p className="font-semibold text-gray-800 mb-2">{t.priceForecast}</p>
+          <p className="text-gray-700">
+            {t.projection3Day}: ₹{Math.round(projected3Day).toLocaleString('en-IN')}
+          </p>
+          <p className="text-gray-700">
+            {t.projection5Day}: ₹{Math.round(projected5Day).toLocaleString('en-IN')}
+          </p>
+        </div>
+
+        <div className="bg-gray-50 border-2 border-gray-200 rounded-xl p-4 mt-4" data-testid="transport-risk">
+          <div className="flex items-center gap-2 mb-2">
+            <p className="font-semibold text-gray-800">{t.transportRisk}:</p>
+            <span className={`text-xs font-bold px-2 py-1 rounded-full ${getRiskBadgeClass()}`}>
+              {riskLevel}
+            </span>
+          </div>
+          <p className="text-sm text-gray-700">{riskMessage}</p>
         </div>
       </div>
     </div>

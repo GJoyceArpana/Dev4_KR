@@ -25,6 +25,12 @@ export interface Market {
   handling_cost: number;
   net_profit: number;
   profit_category: 'high' | 'medium' | 'low';
+  projectedPrice3Day?: number;
+  projectedPrice5Day?: number;
+  risk?: {
+    level: 'HIGH' | 'MEDIUM' | 'LOW';
+    message: string;
+  };
 }
 
 export interface CalculationResult {
