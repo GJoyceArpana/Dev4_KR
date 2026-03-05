@@ -1,4 +1,4 @@
-import { Crop, Market, CalculationResult } from '../types/api';
+import { Crop, Vehicle, Market, CalculationResult } from '../types/api';
 
 export const CROPS_MOCK: Crop[] = [
   { id: 'wheat', name_en: 'Wheat', name_hi: 'गेहूं', icon: '🌾', unit: 'quintal' },
@@ -7,6 +7,12 @@ export const CROPS_MOCK: Crop[] = [
   { id: 'sugarcane', name_en: 'Sugarcane', name_hi: 'गन्ना', icon: '🎋', unit: 'quintal' },
   { id: 'tomato', name_en: 'Tomato', name_hi: 'टमाटर', icon: '🍅', unit: 'quintal' },
   { id: 'potato', name_en: 'Potato', name_hi: 'आलू', icon: '🥔', unit: 'quintal' },
+];
+
+export const VEHICLES_MOCK: Vehicle[] = [
+  { id: 'tractor', name_en: 'Tractor', name_hi: 'ट्रैक्टर', cost_per_km: 15, icon: '🚜' },
+  { id: 'mini_truck', name_en: 'Mini Truck', name_hi: 'मिनी ट्रक', cost_per_km: 20, icon: '🚚' },
+  { id: 'truck', name_en: 'Truck', name_hi: 'ट्रक', cost_per_km: 25, icon: '🚛' },
 ];
 
 export const MARKETS_MOCK: Market[] = [

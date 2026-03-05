@@ -2,8 +2,8 @@ import React, { useState, useContext } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { LanguageContext } from '../App';
 import LanguageToggle from '../components/LanguageToggle';
-import { Tractor, Scale, MapPin } from 'lucide-react';
-import { CROPS_MOCK, CALCULATION_RESULT_MOCK } from '../mock/mandiData';
+import { Tractor, Scale, MapPin, Truck } from 'lucide-react';
+import { CROPS_MOCK, CALCULATION_RESULT_MOCK, VEHICLES_MOCK } from '../mock/mandiData';
 import { CalculationResult } from '../types/api';
 
 interface HomePageProps {
@@ -16,22 +16,26 @@ const translations = {
     subtitle: 'जानिए कहाँ बेचने पर होगा ज्यादा फायदा',
     selectCrop: 'अपनी फसल चुनें',
     enterQuantity: 'मात्रा (क्विंटल)',
+    selectVehicle: 'वाहन चुनें',
     location: 'आपकी लोकेशन',
     calculateButton: 'सबसे ज्यादा फायदा देखें',
     loading: 'गणना हो रही है...',
     quantityPlaceholder: 'जैसे: 20',
     cropPlaceholder: 'फसल चुनें',
+    vehiclePlaceholder: 'वाहन चुनें',
   },
   en: {
     title: 'Krishi-Route',
     subtitle: 'Find where to sell for maximum profit',
     selectCrop: 'Select Your Crop',
     enterQuantity: 'Quantity (Quintal)',
+    selectVehicle: 'Select Vehicle',
     location: 'Your Location',
     calculateButton: 'Show Maximum Profit',
     loading: 'Calculating...',
     quantityPlaceholder: 'e.g., 20',
     cropPlaceholder: 'Choose crop',
+    vehiclePlaceholder: 'Choose vehicle',
   },
 };
 
@@ -42,10 +46,11 @@ const HomePage: React.FC<HomePageProps> = ({ setCalculationResults }) => {
 
   const [selectedCrop, setSelectedCrop] = useState('');
   const [quantity, setQuantity] = useState('');
+  const [selectedVehicle, setSelectedVehicle] = useState('');
   const [loading, setLoading] = useState(false);
 
   const handleCalculate = () => {
-    if (!selectedCrop || !quantity) {
+    if (!selectedCrop || !quantity || !selectedVehicle) {
       alert(language === 'hi' ? 'कृपया सभी जानकारी भरें' : 'Please fill all details');
       return;
     }
@@ -54,10 +59,12 @@ const HomePage: React.FC<HomePageProps> = ({ setCalculationResults }) => {
     
     setTimeout(() => {
       const selectedCropData = CROPS_MOCK.find((c) => c.id === selectedCrop);
+      const selectedVehicleData = VEHICLES_MOCK.find((v) => v.id === selectedVehicle);
       const result: CalculationResult = {
         ...CALCULATION_RESULT_MOCK,
         crop: selectedCropData || CROPS_MOCK[0],
         quantity: parseFloat(quantity),
+        vehicle: selectedVehicleData,
       };
       
       setCalculationResults(result);
@@ -118,6 +125,26 @@ const HomePage: React.FC<HomePageProps> = ({ setCalculationResults }) => {
               className="w-full h-14 text-lg px-4 rounded-lg border-2 border-gray-300 focus:border-green-600 focus:outline-none"
             />
           </div>
+          
+          <div data-testid="vehicle-selection">
+            <label className="flex items-center gap-2 text-xl font-semibold text-gray-800 mb-3">
+              <Truck className="w-6 h-6 text-green-700" />
+              {t.selectVehicle}
+            </label>
+            <select
+              data-testid="vehicle-selector"
+              value={selectedVehicle}
+              onChange={(e) => setSelectedVehicle(e.target.value)}
+              className="w-full h-14 text-lg px-4 rounded-lg border-2 border-gray-300 focus:border-green-600 focus:outline-none bg-white"
+            >
+              <option value="">{t.vehiclePlaceholder}</option>
+              {VEHICLES_MOCK.map((vehicle) => (
+                <option key={vehicle.id} value={vehicle.id}>
+                  {vehicle.icon} {language === 'hi' ? vehicle.name_hi : vehicle.name_en} (₹{vehicle.cost_per_km}/km)
+                </option>
+              ))}
+            </select>
+          </div>
 
           <div data-testid="location-display">
             <label className="flex items-center gap-2 text-xl font-semibold text-gray-800 mb-3">
@@ -134,7 +161,7 @@ const HomePage: React.FC<HomePageProps> = ({ setCalculationResults }) => {
           <button
             data-testid="calculate-button"
             onClick={handleCalculate}
-            disabled={loading || !selectedCrop || !quantity}
+            disabled={loading || !selectedCrop || !quantity || !selectedVehicle}
             className="bg-orange-500 hover:bg-orange-600 disabled:bg-gray-400 text-white font-bold py-4 px-6 rounded-xl shadow-lg w-full text-xl transition-all active:scale-95"
           >
             {loading ? t.loading : t.calculateButton}

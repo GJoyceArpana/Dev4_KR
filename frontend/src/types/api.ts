@@ -6,6 +6,14 @@ export interface Crop {
   unit: string;
 }
 
+export interface Vehicle {
+  id: string;
+  name_en: string;
+  name_hi: string;
+  cost_per_km: number;
+  icon: string;
+}
+
 export interface Market {
   id: string;
   name: string;
@@ -17,17 +25,25 @@ export interface Market {
   handling_cost: number;
   net_profit: number;
   profit_category: 'high' | 'medium' | 'low';
+  projectedPrice3Day?: number;
+  projectedPrice5Day?: number;
+  risk?: {
+    level: 'HIGH' | 'MEDIUM' | 'LOW';
+    message: string;
+  };
 }
 
 export interface CalculationResult {
   crop: Crop;
   quantity: number;
+  vehicle?: Vehicle;
   markets: Market[];
 }
 
 export interface CalculateRequest {
   crop_id: string;
   quantity: number;
+  vehicle_id: string;
   farmer_lat: number;
   farmer_lng: number;
 }
